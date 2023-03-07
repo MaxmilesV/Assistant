@@ -1,0 +1,3 @@
+Switch from csv to SQLite.
+
+Add more functions, probably.
