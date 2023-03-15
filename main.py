@@ -1,26 +1,31 @@
-import commands as cd
-import pandas as pd
+import main_command as cd
+import sqlite3
 
-data = pd.read_csv('data.csv')
-data.set_index('var', inplace=True, drop=True)
+# Подключение к БД
+connection = sqlite3.connect('data.db')
+cursor = connection.cursor()
 
-if data.loc['new_user', 'value'] == 'True':
-    command = input('Hello, User. How can I help you?\n'
-                    'Type "help" for command list.\n'
-                    'Or type "close" to terminate program.\n'
-                    '--> ')
-    data.loc['new_user', 'value'] = 'False'
-    data.to_csv('data.csv')
-else:
-    command = input('Hello, {name}. How can I help you?\n'
-                    '--> '.format(name=data.loc['name', 'value']))
-
-while True:
-    if command.lower() == 'close':
-        break
+def main():
+    cursor.execute('SELECT state FROM user')
+    result = cursor.fetchone()
+    if result[0] == 0:
+        command = input('Hello, User. How can I help you?\n'
+                        'Type "help" for command list.\n'
+                        'Or type "close" to terminate program.\n'
+                        '--> ')
+        cursor.execute('UPDATE user SET state = 1')
+        connection.commit()
+        cd.main_command(command)
     else:
-        cd.global_command(command, data)
-        executing = cd.program_status
-        if not executing:
-            break
-    command = input('--> ')
+        cursor.execute('SELECT name FROM user')
+        result = cursor.fetchone()
+        command = input(f'Hello, {result[0]}. How can I help you?\n'
+                        '--> ')
+        cd.main_command(command)
+    while True:
+        command = input('\n--> ')
+        cd.main_command(command)
+
+if __name__ == "__main__":
+    main()
+

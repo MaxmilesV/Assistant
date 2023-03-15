@@ -1,119 +1,104 @@
-import pandas as pd
-from tabulate import tabulate
+import sqlite3
+import sys
 
-program_status = True
+connection = sqlite3.connect('data.db')
+cursor = connection.cursor()
 
-
-def global_command(command, data):
-    if command == 'help':
-        return print(help_com)
-    elif command == 'reset':
-        return reset()
-    elif command == 'rename':
-        return rename(data)
-    elif command == 'add data':
-        input_value = input('Please type variable name and value.\n'
-                            'Input format [var_name value1 value2...]\n'
-                            '--> ').split()
-        add_var(input_value)
-    elif command == 'show data':
-        show_var()
-    elif command == 'delete data':
-        input_value = input('Please type variable name.\n'
-                            '--> ')
-        del_var(input_value)
-    elif command == 'clear data':
-        clear_var()
-    elif command == 'find data':
-        input_value = input('Please type variable name.\n'
-                            '--> ')
-        find_var(input_value)
+def rename():
+    command = input('Type a new username.\n'
+                    'Or type "back" to return to main menu.\n'
+                    '--> ')
+    if command == 'back':
+        print('Returning to main menu...')
+        pass
     else:
-        return print('Sorry, there is no such command.\n'
-                     'Type "help" to get command list.\n'
-                     'or type "close" to terminate program')
-
+        cursor.execute(f'UPDATE user SET name = "{command}"')
+        connection.commit()
+        print('Done!\n'
+            f'Now your username is {command}.')
 
 def reset():
-    global program_status
-    while True:
-        agreement = input('Are you sure? (Y/N)\n'
-                          '--> ')
-        if agreement == 'Y':
-            default_data = pd.read_csv('default_data.csv')
-            default_data.to_csv('data.csv', index=False)
-            default_user_data = pd.read_csv('default_user_storage.csv')
-            default_user_data.to_csv('user_storage.csv', index=False)
-            print('Done!\n'
-                  'Program will automatically close to apply changes')
-            program_status = False
-            break
-        elif agreement == 'N':
-            return print('Canceling reset process...')
-        print('Please, give a proper answer.')
+    command = input('Are you sure?\n'
+                    'Y/N\n'
+                    '--> ')
+    if command == 'Y':
+        cursor.execute('DROP TABLE data')
+        connection.commit()
+        cursor.execute('CREATE TABLE "data" (data_name TEXT, data_value TEXT)')
+        connection.commit()
+        cursor.execute('UPDATE user SET name = "User", state = 0')
+        connection.commit()
+        print('Done!\n'
+              'Program will terminate to save changes...\n')
+        sys.exit()
+    else:
+        print('Returning to main menu.')
+        pass
 
-
-def rename(data):
-    data.loc['name', 'value'] = input('Enter new username.\n'
-                                      '--> ')
-    print('Done!\n'
-          'Now your username is {name}.'.format(
-            name=data.loc['name', 'value']))
-    data.to_csv('data.csv')
-
-
-def add_var(data):
-    new_data = pd.DataFrame({'variable name': [data[0]],
-                             'value': " ".join(data[1:])})
-    var_storage = pd.read_csv('user_storage.csv')
-    final_data = pd.concat([var_storage, new_data], ignore_index=True)
-    final_data.to_csv('user_storage.csv', index=False)
-    print('Done!')
-
-
-def show_var():
-    var_storage = pd.read_csv('user_storage.csv')
-    var_storage.set_index('variable name')
-    print(tabulate(var_storage, headers='keys', tablefmt='psql',
-                   showindex=False))
-
-
-def del_var(input_value):
-    var_storage = pd.read_csv('user_storage.csv')
-    var_storage.set_index('variable name', inplace=True, drop=True)
-    var_storage.drop(index=input_value, inplace=True)
-    var_storage.to_csv('user_storage.csv')
-    print('Done!')
-
-
-def clear_var():
-    agreement = input('Are you sure? (Y/N)\n'
-                      '--> ')
-    if agreement == 'Y':
-        default_user_data = pd.read_csv('default_user_storage.csv')
-        default_user_data.to_csv('user_storage.csv', index=False)
+def add_data():
+    command = input('Enter data name and value in format:\n'
+                    'data_name data_value\n'
+                    'Or type "back" to return to main menu.\n'
+                    '--> ')
+    if command == 'back':
+        print('Returning to main menu...')
+        pass
+    else:
+        data = command.split()
+        cursor.execute(f'INSERT INTO data (data_name, data_value) VALUES ("{data[0]}", "{data[1]}")')
+        connection.commit()
         print('Done!')
-    elif agreement == 'N':
-        return print('Canceling clearing process...')
-    print('Please, give a proper answer.')
 
+def delete_data():
+    y_n = 'N'
+    while y_n == 'N':
+        command = input('Enter data name to delete it.\n'
+                        'Or type "back" to return to main menu.\n'
+                        '--> ')
+        if command == 'back':
+            return print('Returning to main menu...')
+        else:
+            y_n = input('Are you sure?\n'
+                   'Y/N\n'
+                   '--> ')
+            if y_n == 'Y':
+                cursor.execute(f'DELETE FROM data WHERE data_name = "{command}"')
+                connection.commit()
+                return print('Done!')
 
-def find_var(input_value):
-    var_storage = pd.read_csv('user_storage.csv')
-    var_storage.set_index('variable name', inplace=True, drop=True)
-    print(input_value + ':', var_storage.loc[input_value, 'value'])
+def find_data():
+    error = True
+    while error:
+        command = input('Enter data name your searching for.\n'
+                        'Or type "back" to return to main menu.\n'
+                        '--> ')
+        if command == 'back':
+            return print('Returning to main menu...')
+        else:
+            try:
+                cursor.execute(f'SELECT data_value FROM data WHERE data_name = "{command}"')
+                result = cursor.fetchone()
+                print(f'{command} {result[0]}')
+                error = False
+            except:
+                print('Wrong data name!\n')
 
+def show_data():
+    cursor.execute('SELECT * FROM data')
+    result = cursor.fetchall()
+    for pair in result:
+        print(pair[0], pair[1])
 
-help_com = '''<-- GENERAL -->
-rename - allows you to enter new username.
-close - terminates program.
-
-<-- DATA -->
-add data - allows to store data with values separated by space.
-delete data - allows to delete data from storage.
-find data - allows to find data by name.
-show data - prints all stored variables.
-clear data - deletes all stored data.
-
-<-- SYSTEM -->
-reset - allows you to reset all changes to default value.'''
+def clear_data():
+    command = input('Are you sure?\n'
+                    'Y/N\n'
+                    '--> ')
+    if command == 'Y':
+        cursor.execute('DROP TABLE data')
+        connection.commit()
+        cursor.execute('CREATE TABLE "data" (data_name TEXT, data_value TEXT)')
+        connection.commit()
+        print('All data cleared!')
+    else:
+        print('Returning to main menu.')
+        pass
